@@ -692,10 +692,19 @@ function _render() {
             <label class="edit-label">Supplier</label>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
               ${["Net32","InstrumentsDental","FrontierDental","ProDent USA","Other"].map(sup => {
-                const isSelected = normalizeSupplier(instr.supplier||"") === sup;
-                return `<button onclick="event.stopPropagation();updateInstr('${safeKitId}','${safeInstrId}','supplier','${sup}')" style="padding:5px 10px;border-radius:5px;border:1px solid ${isSelected ? kit.color : "#ddd"};background:${isSelected ? kit.color : "#f5f5f5"};color:${isSelected ? "#fff" : "#555"};font-size:12px;cursor:pointer;font-family:monospace">${sup}</button>`;
+                const normalized = normalizeSupplier(instr.supplier||"");
+                const knownSuppliers = ["Net32","InstrumentsDental","FrontierDental","ProDent USA"];
+                const isOtherSelected = sup === "Other" && (!instr.supplier || !knownSuppliers.includes(normalized));
+                const isSelected = normalized === sup || isOtherSelected;
+                return `<button onclick="event.stopPropagation();selectSupplier('${safeKitId}','${safeInstrId}','${sup}')" style="padding:5px 10px;border-radius:5px;border:1px solid ${isSelected ? kit.color : "#ddd"};background:${isSelected ? kit.color : "#f5f5f5"};color:${isSelected ? "#fff" : "#555"};font-size:12px;cursor:pointer;font-family:monospace">${sup}</button>`;
               }).join("")}
             </div>
+            ${(()=>{
+              const normalized = normalizeSupplier(instr.supplier||"");
+              const knownSuppliers = ["Net32","InstrumentsDental","FrontierDental","ProDent USA"];
+              const showOtherInput = !knownSuppliers.includes(normalized);
+              return showOtherInput ? `<input class="edit-input" style="margin-top:6px" value="${escHtml(instr.supplier||"")}" oninput="updateInstr('${safeKitId}','${safeInstrId}','supplier',this.value)" placeholder="Type supplier name…">` : "";
+            })()}
           </div>
           <div class="edit-row">
             <label class="edit-label">Product URL (direct link to item)</label>
@@ -774,7 +783,21 @@ function normalizeSupplier(s) {
   if (l.includes("instrumentsdental") || l.includes("instruments dental")) return "InstrumentsDental";
   if (l.includes("frontier")) return "FrontierDental";
   if (l.includes("prodent") || l.includes("prodentusa") || l.includes("prodent usa")) return "ProDent USA";
-  return s; // return as-is for "Other" or anything unrecognized
+  return s;
+}
+
+function selectSupplier(kitId, instrId, sup) {
+  const kit = state.kits.find(k => k.id === kitId);
+  if (!kit) return;
+  const instr = kit.instruments.find(i => i.id === instrId);
+  if (!instr) return;
+  if (sup === "Other") {
+    instr.supplier = " "; // single space triggers Other mode — user types over it
+  } else {
+    instr.supplier = sup;
+  }
+  scheduleSave();
+  render();
 }
 
 function toggleKit(kitId) {
