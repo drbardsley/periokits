@@ -211,6 +211,7 @@
           <div style="display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden">
             <button id="viewByKit" onclick="setOrderView('kit')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#1a1a1a;color:#fff;font-family:monospace">By Kit</button>
             <button id="viewByInstr" onclick="setOrderView('instr')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#f5f5f5;color:#888;font-family:monospace">Master List</button>
+            <button id="viewBySupplier" onclick="setOrderView('supplier')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#f5f5f5;color:#888;font-family:monospace">By Supplier</button>
           </div>
           <div class="order-total-box">
             <div class="order-total-num" id="orderTotal">0</div>
@@ -226,9 +227,15 @@
           <div class="order-title">Cost Summary</div>
           <div class="order-sub">Package pricing — boxes to order & estimated spend</div>
         </div>
-        <div class="order-total-box" style="background:#1a5276">
-          <div class="order-total-num" id="costTotal">$0</div>
-          <div class="order-total-label">estimated total</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+            <button id="costByKit" onclick="setCostView('kit')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#1a5276;color:#fff;font-family:monospace">By Kit</button>
+            <button id="costBySupplier" onclick="setCostView('supplier')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#f5f5f5;color:#888;font-family:monospace">By Supplier</button>
+          </div>
+          <div class="order-total-box" style="background:#1a5276">
+            <div class="order-total-num" id="costTotal">$0</div>
+            <div class="order-total-label">estimated total</div>
+          </div>
         </div>
       </div>
       <div id="cost-container"></div>
@@ -467,12 +474,41 @@ function switchTab(i) {
 
 function setOrderView(v) {
   orderView = v;
-  document.getElementById("viewByKit").style.background = v==="kit" ? "#1a1a1a" : "#f5f5f5";
-  document.getElementById("viewByKit").style.color = v==="kit" ? "#fff" : "#888";
-  document.getElementById("viewByInstr").style.background = v==="instr" ? "#1a1a1a" : "#f5f5f5";
-  document.getElementById("viewByInstr").style.color = v==="instr" ? "#fff" : "#888";
+  ["kit","instr","supplier"].forEach(mode => {
+    const btnId = mode === "kit" ? "viewByKit" : mode === "instr" ? "viewByInstr" : "viewBySupplier";
+    const btn = document.getElementById(btnId);
+    if (btn) { btn.style.background = v === mode ? "#1a1a1a" : "#f5f5f5"; btn.style.color = v === mode ? "#fff" : "#888"; }
+  });
   renderOrderList();
 }
+
+let costView = 'kit';
+function setCostView(v) {
+  costView = v;
+  const bk = document.getElementById("costByKit");
+  const bs = document.getElementById("costBySupplier");
+  if (bk) { bk.style.background = v==="kit" ? "#1a5276" : "#f5f5f5"; bk.style.color = v==="kit" ? "#fff" : "#888"; }
+  if (bs) { bs.style.background = v==="supplier" ? "#1a5276" : "#f5f5f5"; bs.style.color = v==="supplier" ? "#fff" : "#888"; }
+  renderCostList();
+}
+
+function buildSupplierMap() {
+  // Group all instruments by normalized supplier
+  const map = {};
+  state.kits.forEach(kit => {
+    const numSets = state.sets[kit.id] || 0;
+    kit.instruments.forEach(instr => {
+      const sup = normalizeSupplier(instr.supplier || "") || "No Supplier";
+      if (!map[sup]) map[sup] = [];
+      map[sup].push({ ...instr, kitName: kit.name, kitColor: kit.color, numSets, totalUnits: instr.q * numSets });
+    });
+  });
+  return map;
+}
+
+const SUPPLIER_COLORS = { "Net32": "#E67E22", "InstrumentsDental": "#2980B9", "FrontierDental": "#8E44AD", "ProDent USA": "#27AE60", "No Supplier": "#aaa" };
+
+function supplierColor(sup) { return SUPPLIER_COLORS[sup] || "#566573"; }
 
 function buildMasterList() {
   const map = {};
@@ -489,7 +525,7 @@ function buildMasterList() {
       if (instr.pkgPrice) { map[key].pkgQty = instr.pkgQty||1; map[key].pkgPrice = instr.pkgPrice; map[key].code = instr.c||map[key].code; map[key].supplier = instr.supplier||map[key].supplier; }
     });
   });
-  return Object.values(map);
+  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // --- Order List ---
@@ -507,13 +543,13 @@ function renderOrderList() {
         const displayName = instr.s || instr.name;
         const pkgQty = instr.pkgQty || 1;
         const pkgsNeeded = pkgQty > 1 ? Math.ceil(qty / pkgQty) : null;
+        const sup = normalizeSupplier(instr.supplier || "");
         return `<div class="order-row${i%2===0?" alt":""}">
           <div style="flex:3;min-width:0">
             <div class="order-instr-name">${escHtml(displayName)}</div>
             ${instr.s && instr.s !== instr.name ? `<div class="order-instr-generic">${escHtml(instr.name)}</div>` : ""}
-            ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(normalizeSupplier(instr.supplier))}</div>` : ""}
+            ${sup ? `<span style="font-size:10px;font-family:monospace;background:${supplierColor(sup)}22;color:${supplierColor(sup)};padding:1px 5px;border-radius:3px;font-weight:700">${sup}</span>` : ""}
           </div>
-          <span style="flex:1.2;font-size:11px;color:${kit.color};font-family:monospace">${instr.c ? "#"+escHtml(instr.c) : "—"}</span>
           <span style="flex:0.6;text-align:center;color:#888;font-size:12px">${instr.q}×${numSets}</span>
           <span style="flex:0.6;text-align:center;font-weight:700;font-size:13px">${qty}</span>
           <span style="flex:0.9;text-align:right;font-size:12px;color:#555">${pkgsNeeded ? `<strong>${pkgsNeeded}</strong> pkg<br><span style="font-size:10px;color:#aaa">${pkgQty}/pkg</span>` : "—"}</span>
@@ -526,27 +562,31 @@ function renderOrderList() {
           </div>
           <div class="order-table">
             <div class="order-table-head">
-              <span style="flex:3">Instrument</span><span style="flex:1.2">Code</span>
+              <span style="flex:3">Instrument</span>
               <span style="flex:0.6;text-align:center">Qty</span><span style="flex:0.6;text-align:center">Units</span>
               <span style="flex:0.9;text-align:right">Pkgs</span>
             </div>${rowsHTML}
           </div>
         </div>`;
     });
-  } else {
+
+  } else if (orderView === "instr") {
     const master = buildMasterList();
     let rowsHTML = master.map((item, i) => {
       total += item.totalUnits;
       const pkgQty = item.pkgQty || 1;
       const pkgsNeeded = pkgQty > 1 ? Math.ceil(item.totalUnits / pkgQty) : null;
+      const sup = normalizeSupplier(item.supplier || "");
       const kitDots = item.kits.map(k => `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${k.kitColor};margin-right:2px"></span>`).join("");
       return `<div class="order-row${i%2===0?" alt":""}">
         <div style="flex:3;min-width:0">
           <div class="order-instr-name">${escHtml(item.name)}</div>
           ${item.name !== item.genericName ? `<div class="order-instr-generic">${escHtml(item.genericName)}</div>` : ""}
-          <div style="margin-top:3px">${kitDots}</div>
+          <div style="margin-top:3px;display:flex;align-items:center;gap:6px">
+            ${kitDots}
+            ${sup ? `<span style="font-size:10px;font-family:monospace;background:${supplierColor(sup)}22;color:${supplierColor(sup)};padding:1px 5px;border-radius:3px;font-weight:700">${sup}</span>` : ""}
+          </div>
         </div>
-        <span style="flex:1.2;font-size:11px;color:#2980B9;font-family:monospace">${item.code ? "#"+escHtml(item.code) : "—"}</span>
         <span style="flex:0.7;text-align:center;font-weight:700;font-size:14px">${item.totalUnits}</span>
         <span style="flex:0.9;text-align:right;font-size:12px;color:#555">${pkgsNeeded ? `<strong>${pkgsNeeded}</strong> pkg<br><span style="font-size:10px;color:#aaa">${pkgQty}/pkg</span>` : "—"}</span>
       </div>`;
@@ -558,11 +598,50 @@ function renderOrderList() {
         </div>
         <div class="order-table">
           <div class="order-table-head">
-            <span style="flex:3">Instrument</span><span style="flex:1.2">Code</span>
+            <span style="flex:3">Instrument</span>
             <span style="flex:0.7;text-align:center">Total Units</span><span style="flex:0.9;text-align:right">Pkgs to Order</span>
           </div>${rowsHTML}
         </div>
       </div>`;
+
+  } else if (orderView === "supplier") {
+    const supMap = buildSupplierMap();
+    const supOrder = ["Net32","InstrumentsDental","FrontierDental","ProDent USA","No Supplier"].concat(
+      Object.keys(supMap).filter(s => !["Net32","InstrumentsDental","FrontierDental","ProDent USA","No Supplier"].includes(s))
+    );
+    supOrder.forEach(sup => {
+      if (!supMap[sup]) return;
+      const items = supMap[sup].sort((a, b) => (a.s || a.name).localeCompare(b.s || b.name));
+      const color = supplierColor(sup);
+      let rowsHTML = items.map((instr, i) => {
+        total += instr.totalUnits;
+        const pkgQty = instr.pkgQty || 1;
+        const pkgsNeeded = pkgQty > 1 ? Math.ceil(instr.totalUnits / pkgQty) : null;
+        return `<div class="order-row${i%2===0?" alt":""}">
+          <div style="flex:3;min-width:0">
+            <div class="order-instr-name">${escHtml(instr.s || instr.name)}</div>
+            <div style="font-size:11px;color:#aaa">${escHtml(instr.name)} — <span style="color:${instr.kitColor}">${escHtml(instr.kitName)}</span></div>
+            ${instr.c ? `<a href="${escHtml(instr.c)}" target="_blank" style="font-size:10px;color:#2980B9;text-decoration:none;font-family:monospace">🔗 View item</a>` : ""}
+          </div>
+          <span style="flex:0.6;text-align:center;color:#888;font-size:12px">${instr.q}×${instr.numSets}</span>
+          <span style="flex:0.6;text-align:center;font-weight:700;font-size:13px">${instr.totalUnits}</span>
+          <span style="flex:0.9;text-align:right;font-size:12px;color:#555">${pkgsNeeded ? `<strong>${pkgsNeeded}</strong> pkg<br><span style="font-size:10px;color:#aaa">${pkgQty}/pkg</span>` : "—"}</span>
+        </div>`;
+      }).join("");
+      container.innerHTML += `
+        <div class="order-section">
+          <div class="order-section-head" style="border-color:${color}">
+            <span class="order-dot" style="background:${color}"></span>${escHtml(sup)}
+          </div>
+          <div class="order-table">
+            <div class="order-table-head">
+              <span style="flex:3">Instrument</span>
+              <span style="flex:0.6;text-align:center">Qty</span><span style="flex:0.6;text-align:center">Units</span>
+              <span style="flex:0.9;text-align:right">Pkgs</span>
+            </div>${rowsHTML}
+          </div>
+        </div>`;
+    });
   }
   document.getElementById("orderTotal").textContent = total;
 }
@@ -573,42 +652,86 @@ function renderCostList() {
   container.innerHTML = "";
   let grandTotal = 0;
 
-  state.kits.forEach(kit => {
-    const numSets = state.sets[kit.id] || 0;
-    const priced = kit.instruments.filter(i => i.pkgPrice);
-    if (!priced.length) return;
-    let kitCost = 0;
-    let rowsHTML = priced.map((instr, i) => {
-      const totalUnits = instr.q * numSets;
-      const pkgQty = instr.pkgQty || 1;
-      const pkgsNeeded = Math.ceil(totalUnits / pkgQty);
-      const cost = pkgsNeeded * (instr.pkgPrice || 0);
-      kitCost += cost; grandTotal += cost;
-      const displayName = instr.s || instr.name;
-      return `<div class="order-row${i%2===0?" alt":""}">
-        <div style="flex:3;min-width:0">
-          <div style="font-size:13px">${escHtml(displayName)}</div>
-          ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(normalizeSupplier(instr.supplier))}</div>` : ""}
-        </div>
-        <span style="flex:1;text-align:center;font-size:12px;color:#888">${totalUnits} units</span>
-        <span style="flex:1.2;text-align:center;font-size:12px;color:#888">${pkgsNeeded} pkg × $${parseFloat(instr.pkgPrice).toFixed(2)}</span>
-        <span style="flex:0.8;text-align:right;font-weight:700;color:${kit.color}">$${cost.toFixed(2)}</span>
-      </div>`;
-    }).join("");
-    container.innerHTML += `
-      <div class="order-section">
-        <div class="order-section-head" style="border-color:${kit.color};justify-content:space-between">
-          <div style="display:flex;align-items:center;gap:8px"><span class="order-dot" style="background:${kit.color}"></span>${escHtml(kit.name)}</div>
-          <span style="font-size:13px;color:${kit.color}">$${kitCost.toFixed(2)}</span>
-        </div>
-        <div class="order-table">
-          <div class="order-table-head">
-            <span style="flex:3">Instrument</span><span style="flex:1;text-align:center">Units</span>
-            <span style="flex:1.2;text-align:center">Calculation</span><span style="flex:0.8;text-align:right">Cost</span>
-          </div>${rowsHTML}
-        </div>
-      </div>`;
-  });
+  if (costView === "kit") {
+    state.kits.forEach(kit => {
+      const numSets = state.sets[kit.id] || 0;
+      const priced = kit.instruments.filter(i => i.pkgPrice);
+      if (!priced.length) return;
+      let kitCost = 0;
+      let rowsHTML = priced.map((instr, i) => {
+        const totalUnits = instr.q * numSets;
+        const pkgQty = instr.pkgQty || 1;
+        const pkgsNeeded = Math.ceil(totalUnits / pkgQty);
+        const cost = pkgsNeeded * (instr.pkgPrice || 0);
+        kitCost += cost; grandTotal += cost;
+        const sup = normalizeSupplier(instr.supplier || "");
+        return `<div class="order-row${i%2===0?" alt":""}">
+          <div style="flex:3;min-width:0">
+            <div style="font-size:13px">${escHtml(instr.s || instr.name)}</div>
+            ${sup ? `<span style="font-size:10px;font-family:monospace;background:${supplierColor(sup)}22;color:${supplierColor(sup)};padding:1px 5px;border-radius:3px;font-weight:700">${sup}</span>` : ""}
+          </div>
+          <span style="flex:1;text-align:center;font-size:12px;color:#888">${totalUnits} units</span>
+          <span style="flex:1.2;text-align:center;font-size:12px;color:#888">${pkgsNeeded} pkg × $${parseFloat(instr.pkgPrice).toFixed(2)}</span>
+          <span style="flex:0.8;text-align:right;font-weight:700;color:${kit.color}">$${cost.toFixed(2)}</span>
+        </div>`;
+      }).join("");
+      container.innerHTML += `
+        <div class="order-section">
+          <div class="order-section-head" style="border-color:${kit.color};justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px"><span class="order-dot" style="background:${kit.color}"></span>${escHtml(kit.name)}</div>
+            <span style="font-size:13px;color:${kit.color}">$${kitCost.toFixed(2)}</span>
+          </div>
+          <div class="order-table">
+            <div class="order-table-head">
+              <span style="flex:3">Instrument</span><span style="flex:1;text-align:center">Units</span>
+              <span style="flex:1.2;text-align:center">Calculation</span><span style="flex:0.8;text-align:right">Cost</span>
+            </div>${rowsHTML}
+          </div>
+        </div>`;
+    });
+
+  } else if (costView === "supplier") {
+    const supMap = buildSupplierMap();
+    const supOrder = ["Net32","InstrumentsDental","FrontierDental","ProDent USA"].concat(
+      Object.keys(supMap).filter(s => !["Net32","InstrumentsDental","FrontierDental","ProDent USA","No Supplier"].includes(s))
+    ).concat(["No Supplier"]);
+    supOrder.forEach(sup => {
+      if (!supMap[sup]) return;
+      const priced = supMap[sup].filter(i => i.pkgPrice).sort((a, b) => (a.s || a.name).localeCompare(b.s || b.name));
+      if (!priced.length) return;
+      const color = supplierColor(sup);
+      let supCost = 0;
+      let rowsHTML = priced.map((instr, i) => {
+        const pkgQty = instr.pkgQty || 1;
+        const pkgsNeeded = Math.ceil(instr.totalUnits / pkgQty);
+        const cost = pkgsNeeded * (instr.pkgPrice || 0);
+        supCost += cost; grandTotal += cost;
+        return `<div class="order-row${i%2===0?" alt":""}">
+          <div style="flex:3;min-width:0">
+            <div style="font-size:13px">${escHtml(instr.s || instr.name)}</div>
+            <div style="font-size:11px;color:#aaa">${escHtml(instr.name)} — <span style="color:${instr.kitColor}">${escHtml(instr.kitName)}</span></div>
+            ${instr.c ? `<a href="${escHtml(instr.c)}" target="_blank" style="font-size:10px;color:#2980B9;text-decoration:none;font-family:monospace">🔗 View item</a>` : ""}
+          </div>
+          <span style="flex:1;text-align:center;font-size:12px;color:#888">${instr.totalUnits} units</span>
+          <span style="flex:1.2;text-align:center;font-size:12px;color:#888">${pkgsNeeded} pkg × $${parseFloat(instr.pkgPrice).toFixed(2)}</span>
+          <span style="flex:0.8;text-align:right;font-weight:700;color:${color}">$${cost.toFixed(2)}</span>
+        </div>`;
+      }).join("");
+      container.innerHTML += `
+        <div class="order-section">
+          <div class="order-section-head" style="border-color:${color};justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px"><span class="order-dot" style="background:${color}"></span>${escHtml(sup)}</div>
+            <span style="font-size:13px;color:${color}">$${supCost.toFixed(2)}</span>
+          </div>
+          <div class="order-table">
+            <div class="order-table-head">
+              <span style="flex:3">Instrument</span><span style="flex:1;text-align:center">Units</span>
+              <span style="flex:1.2;text-align:center">Calculation</span><span style="flex:0.8;text-align:right">Cost</span>
+            </div>${rowsHTML}
+          </div>
+        </div>`;
+    });
+  }
 
   if (!grandTotal) {
     container.innerHTML = `<div style="text-align:center;padding:48px 20px;color:#aaa;font-style:italic;line-height:1.8">No pricing entered yet.<br>Tap ✏️ on any instrument in Kit Builder<br>to add package size and price.</div>`;
