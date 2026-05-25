@@ -131,6 +131,7 @@
       <div class="header-right">
         <span class="save-status" id="saveStatus"></span>
         <button onclick="refreshData()" id="refreshBtn" style="background:none;border:1px solid #444;color:#aaa;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;font-family:monospace" title="Pull latest data from server">↺ Refresh</button>
+        <button onclick="exportData()" style="background:none;border:1px solid #444;color:#aaa;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;font-family:monospace" title="Download backup of your data">⬇ Export</button>
         <button onclick="openPrintModal()" style="background:none;border:1px solid #444;color:#aaa;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;font-family:monospace" title="Print">🖨 Print</button>
         <div class="tab-row">
           <button class="tab active" onclick="switchTab(0)">Kit Builder</button>
@@ -807,15 +808,11 @@ function render() {
   } catch(e) {
     document.getElementById("loading").style.display = "none";
     document.getElementById("app").style.display = "block";
-    document.getElementById("kits-container").innerHTML = `<div style="padding:20px;color:#e74c3c;font-family:monospace;font-size:12px">Render error: ${e.message}<br><br><button onclick="resetState()" style="padding:8px 16px;background:#e74c3c;color:#fff;border:none;border-radius:6px;cursor:pointer">Reset to defaults</button></div>`;
+    document.getElementById("kits-container").innerHTML = `<div style="padding:20px;color:#e74c3c;font-family:monospace;font-size:12px;line-height:1.8">
+      <strong>Render error:</strong> ${e.message}<br><br>
+      <span style="color:#555;font-family:Georgia,serif;font-size:13px">Your data is safe in Firebase. Try hitting the ↺ Refresh button, or come back to this Claude conversation for help.</span>
+    </div>`;
   }
-}
-
-function resetState() {
-  if (!confirm("Reset all data to defaults? This cannot be undone.")) return;
-  state = JSON.parse(JSON.stringify(SAVED_STATE));
-  scheduleSave();
-  _render();
 }
 
 function _render() {
@@ -1234,6 +1231,24 @@ function confirmMoveOrCopy() {
   closeMoveModal();
   expandedKit = destKitId;
   render();
+}
+
+function exportData() {
+  try {
+    const dataStr = JSON.stringify(state, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `perio-kits-backup-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert("Export failed: " + e.message);
+  }
 }
 
 // --- Print ---
