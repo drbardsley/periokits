@@ -525,7 +525,7 @@ function buildMasterList() {
       if (instr.pkgPrice) { map[key].pkgQty = instr.pkgQty||1; map[key].pkgPrice = instr.pkgPrice; map[key].code = instr.c||map[key].code; map[key].supplier = instr.supplier||map[key].supplier; }
     });
   });
-  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.values(map).sort((a, b) => a.genericName.localeCompare(b.genericName));
 }
 
 // --- Order List ---
@@ -611,7 +611,7 @@ function renderOrderList() {
     );
     supOrder.forEach(sup => {
       if (!supMap[sup]) return;
-      const items = supMap[sup].sort((a, b) => (a.s || a.name).localeCompare(b.s || b.name));
+      const items = supMap[sup].sort((a, b) => (a.name).localeCompare(b.name));
       const color = supplierColor(sup);
       let rowsHTML = items.map((instr, i) => {
         total += instr.totalUnits;
@@ -697,7 +697,7 @@ function renderCostList() {
     ).concat(["No Supplier"]);
     supOrder.forEach(sup => {
       if (!supMap[sup]) return;
-      const priced = supMap[sup].filter(i => i.pkgPrice).sort((a, b) => (a.s || a.name).localeCompare(b.s || b.name));
+      const priced = supMap[sup].filter(i => i.pkgPrice).sort((a, b) => (a.name).localeCompare(b.name));
       if (!priced.length) return;
       const color = supplierColor(sup);
       let supCost = 0;
