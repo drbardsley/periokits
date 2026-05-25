@@ -522,12 +522,13 @@ let orderView = 'kit';
 
 function switchTab(i) {
   activeTab = i;
-  document.getElementById("tab0").style.display = i === 0 ? "block" : "none";
-  document.getElementById("tab1").style.display = i === 1 ? "block" : "none";
-  document.getElementById("tab2").style.display = i === 2 ? "block" : "none";
+  ["tab0","tab1","tab2"].forEach((id, idx) => {
+    document.getElementById(id).style.display = idx === i ? "block" : "none";
+  });
   document.querySelectorAll(".tab").forEach((t, idx) => t.classList.toggle("active", idx === i));
-  if (i === 1) renderOrderList();
-  if (i === 2) renderCostList();
+  if (i === 0) { render(); }
+  if (i === 1) { renderOrderList(); }
+  if (i === 2) { renderCostList(); }
 }
 
 function setOrderView(v) {
