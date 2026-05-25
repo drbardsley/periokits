@@ -113,6 +113,7 @@
       </div>
       <div class="header-right">
         <span class="save-status" id="saveStatus"></span>
+        <button onclick="refreshData()" id="refreshBtn" style="background:none;border:1px solid #444;color:#aaa;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;font-family:monospace" title="Pull latest data from server">↺ Refresh</button>
         <div class="tab-row">
           <button class="tab active" onclick="switchTab(0)">Kit Builder</button>
           <button class="tab" onclick="switchTab(1)">Order List</button>
@@ -420,6 +421,34 @@ function setStatus(s) {
   else if (s === "saved") { el.textContent = "✓ Saved"; el.style.color = "#27ae60"; }
   else if (s === "error") { el.textContent = "Save failed"; el.style.color = "#e74c3c"; }
   else { el.textContent = ""; }
+}
+
+async function refreshData() {
+  const btn = document.getElementById("refreshBtn");
+  btn.textContent = "↺ Refreshing…";
+  btn.style.color = "#aaa";
+  try {
+    const data = await fbGet();
+    if (data && data.kits && data.kits.length > 0) {
+      state = data;
+      if (!state.sets) state.sets = {};
+      if (!state.checked) state.checked = {};
+      if (!state.notes) state.notes = {};
+      state.kits.forEach(k => { if (state.sets[k.id] === undefined) state.sets[k.id] = k.defaultSets || 1; });
+      localStorage.setItem(LS_KEY, JSON.stringify(state));
+      initNextId();
+      render();
+      btn.textContent = "✓ Up to date";
+      btn.style.color = "#27ae60";
+    } else {
+      btn.textContent = "↺ Refresh";
+      btn.style.color = "#aaa";
+    }
+  } catch(e) {
+    btn.textContent = "✕ Failed";
+    btn.style.color = "#e74c3c";
+  }
+  setTimeout(() => { btn.textContent = "↺ Refresh"; btn.style.color = "#aaa"; }, 2500);
 }
 
 // --- Tabs ---
