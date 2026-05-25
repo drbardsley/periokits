@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perio Kit Planner</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #F5F3EE; color: #1a1a1a; min-height: 100vh; }
+  header { background: #1a1a1a; color: #fff; padding: 0 16px; position: sticky; top: 0; z-index: 100; }
+  .header-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 0; flex-wrap: wrap; gap: 8px; }
+  .header-label { font-size: 10px; letter-spacing: 3px; color: #888; text-transform: uppercase; font-family: monospace; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .save-status { font-size: 11px; font-family: monospace; min-width: 60px; }
+  .tab-row { display: flex; gap: 4px; }
+  .tab { padding: 8px 14px; border: 1px solid #444; background: transparent; color: #aaa; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: monospace; }
+  .tab.active { background: #fff; color: #1a1a1a; border-color: #fff; font-weight: 700; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+  .hint { color: #666; font-size: 13px; margin-bottom: 16px; font-style: italic; }
+  .kit-card { background: #fff; border-radius: 10px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .kit-header { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: none; border: none; cursor: pointer; text-align: left; gap: 8px; flex-wrap: wrap; }
+  .kit-header-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+  .kit-badge { color: #fff; font-size: 10px; font-family: monospace; font-weight: 700; letter-spacing: 1px; padding: 4px 8px; border-radius: 4px; white-space: nowrap; }
+  .kit-name { font-weight: 700; font-size: 15px; }
+  .kit-note { font-size: 11px; color: #888; font-style: italic; margin-top: 2px; }
+  .kit-header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .progress-wrap { display: flex; align-items: center; gap: 6px; }
+  .progress-track { width: 60px; height: 4px; background: #eee; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .progress-label { font-size: 11px; color: #888; font-family: monospace; white-space: nowrap; }
+  .sets-control { display: flex; align-items: center; gap: 4px; }
+  .stepper { width: 26px; height: 26px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 700; color: #333; line-height: 1; }
+  .sets-num { font-size: 15px; font-weight: 700; min-width: 20px; text-align: center; font-family: monospace; }
+  .sets-label { font-size: 11px; color: #888; }
+  .chevron { font-size: 11px; color: #aaa; }
+  .kit-body { border-top: 1px solid #f0f0f0; padding: 8px 16px 16px; display: none; }
+  .kit-body.open { display: block; }
+  .instr-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f7f7f7; cursor: pointer; }
+  .instr-row.done { opacity: 0.45; }
+  .checkbox { width: 20px; height: 20px; border: 2px solid #ccc; border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 12px; font-weight: 700; color: #fff; }
+  .instr-info { flex: 1; min-width: 0; }
+  .instr-name { font-size: 14px; font-weight: 500; }
+  .instr-name.struck { text-decoration: line-through; color: #aaa; }
+  .instr-generic { font-size: 11px; color: #aaa; font-style: italic; }
+  .instr-code { font-size: 11px; font-family: monospace; font-weight: 700; margin-top: 1px; }
+  .instr-qty { font-size: 11px; color: #bbb; font-family: monospace; white-space: nowrap; }
+  .instr-total { font-size: 12px; font-weight: 700; color: #555; font-family: monospace; white-space: nowrap; min-width: 40px; text-align: right; }
+  .icon-btn { background: none; border: none; cursor: pointer; font-size: 15px; padding: 2px 4px; flex-shrink: 0; }
+  .edit-panel { background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 12px 14px; margin: 4px 0 8px; border-left-width: 3px; display: none; }
+  .edit-panel.open { display: block; }
+  .edit-row { margin-bottom: 10px; }
+  .edit-label { display: block; font-size: 10px; font-family: monospace; letter-spacing: 1px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
+  .edit-input { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 7px 10px; font-size: 13px; font-family: Georgia, serif; color: #333; background: #fff; }
+  .edit-input.small { width: 70px; }
+  .done-btn { color: #fff; border: none; border-radius: 6px; padding: 7px 18px; font-size: 13px; cursor: pointer; font-weight: 700; margin-top: 4px; }
+  .add-btn { display: block; width: 100%; margin-top: 10px; padding: 9px; background: none; border: 1px dashed; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: Georgia, serif; }
+  .note-wrap { margin-top: 12px; }
+  .note-input { width: 100%; border: 1px solid #e8e8e8; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: Georgia, serif; resize: vertical; min-height: 52px; color: #444; background: #fafafa; }
+  /* Order list */
+  .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .order-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .order-sub { color: #888; font-size: 13px; font-style: italic; }
+  .order-total-box { background: #1a1a1a; color: #fff; border-radius: 10px; padding: 10px 18px; text-align: center; }
+  .order-total-num { font-size: 28px; font-weight: 700; font-family: monospace; }
+  .order-total-label { font-size: 10px; color: #aaa; letter-spacing: 1px; text-transform: uppercase; }
+  .order-section { margin-bottom: 20px; }
+  .order-section-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-left: 3px solid; padding-left: 10px; margin-bottom: 6px; font-family: monospace; }
+  .order-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .order-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .order-table-head { display: flex; padding: 8px 14px; background: #f5f5f5; font-size: 10px; font-family: monospace; letter-spacing: 1px; text-transform: uppercase; color: #888; gap: 8px; }
+  .order-row { display: flex; padding: 9px 14px; font-size: 13px; gap: 8px; align-items: center; }
+  .order-row.alt { background: #fafafa; }
+  .order-instr-name { font-size: 13px; }
+  .order-instr-generic { font-size: 11px; color: #aaa; }
+  #loading { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 12px; }
+  #loading .tooth { font-size: 32px; }
+  #loading p { font-family: Georgia, serif; color: #888; font-size: 14px; }
+  #app { display: none; }
+  .new-kit-btn { display: block; width: 100%; padding: 14px; background: none; border: 2px dashed #ccc; border-radius: 10px; cursor: pointer; font-size: 14px; font-family: Georgia, serif; color: #888; margin-top: 8px; transition: all 0.2s; }
+  .new-kit-btn:hover { border-color: #aaa; color: #555; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+  .modal-row { margin-bottom: 14px; }
+  .modal-label { display: block; font-size: 10px; font-family: monospace; letter-spacing: 1px; text-transform: uppercase; color: #888; margin-bottom: 5px; }
+  .modal-input { width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 9px 12px; font-size: 14px; font-family: Georgia, serif; color: #333; background: #fff; }
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .swatch { width: 32px; height: 32px; border-radius: 6px; cursor: pointer; border: 3px solid transparent; transition: transform 0.1s; }
+  .swatch.selected { border-color: #1a1a1a; transform: scale(1.15); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-cancel { flex: 1; padding: 10px; background: #f5f5f5; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; font-family: Georgia, serif; color: #555; }
+  .modal-create { flex: 2; padding: 10px; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; font-family: Georgia, serif; color: #fff; font-weight: 700; }
+  .delete-kit-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: #ddd; padding: 2px 6px; margin-left: 4px; }
+  .delete-kit-btn:hover { color: #e74c3c; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="tooth">🦷</div>
+  <p>Loading your kit data…</p>
+  <p id="loadStatus" style="font-size:11px;color:#aaa;margin-top:8px;font-family:monospace;text-align:center;padding:0 20px"></p>
+</div>
+
+<div id="app">
+  <header>
+    <div class="header-inner">
+      <div>
+        <div class="header-label">PERIODONTIST</div>
+        <h1>Instrument Kit Planner</h1>
+      </div>
+      <div class="header-right">
+        <span class="save-status" id="saveStatus"></span>
+        <div class="tab-row">
+          <button class="tab active" onclick="switchTab(0)">Kit Builder</button>
+          <button class="tab" onclick="switchTab(1)">Order List</button>
+          <button class="tab" onclick="switchTab(2)">💰 Cost</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div id="tab0">
+      <p class="hint">All changes save automatically. Tap ✏️ to edit, 🗑 to remove, ＋ to add instruments.</p>
+      <div id="kits-container"></div>
+      <button class="new-kit-btn" onclick="openNewKitModal()">＋ Create New Kit Category</button>
+    </div>
+
+  <!-- New Kit Modal -->
+  <div class="modal-overlay" id="newKitModal">
+    <div class="modal">
+      <div class="modal-title">New Kit Category</div>
+      <div class="modal-row">
+        <label class="modal-label">Kit name</label>
+        <input class="modal-input" id="nkName" placeholder="e.g. Implant Surgery" oninput="syncAbbrev()">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Abbreviation (shown on badge)</label>
+        <input class="modal-input" id="nkAbbrev" placeholder="e.g. IMPL" maxlength="6">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Starting number of sets</label>
+        <input class="modal-input" id="nkSets" type="number" min="1" max="20" value="3" style="width:80px">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Color</label>
+        <div class="color-swatches" id="colorSwatches"></div>
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Note (optional)</label>
+        <input class="modal-input" id="nkNote" placeholder="e.g. Grab per case">
+      </div>
+      <div class="modal-btns">
+        <button class="modal-cancel" onclick="closeNewKitModal()">Cancel</button>
+        <button class="modal-create" id="createKitBtn" onclick="createKit()">Create Kit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Kit Modal (rename/recolor any kit) -->
+  <div class="modal-overlay" id="editKitModal">
+    <div class="modal">
+      <div class="modal-title">Edit Kit</div>
+      <div class="modal-row">
+        <label class="modal-label">Kit name</label>
+        <input class="modal-input" id="ekName" placeholder="Kit name">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Abbreviation</label>
+        <input class="modal-input" id="ekAbbrev" placeholder="e.g. EXT" maxlength="6">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Color</label>
+        <div class="color-swatches" id="editColorSwatches"></div>
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">Note (optional)</label>
+        <input class="modal-input" id="ekNote" placeholder="e.g. Grab per case">
+      </div>
+      <div class="modal-btns">
+        <button class="modal-cancel" onclick="closeEditKitModal()">Cancel</button>
+        <button class="modal-create" id="saveKitBtn" onclick="saveKitEdits()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move/Copy Instrument Modal -->
+  <div class="modal-overlay" id="moveInstrModal">
+    <div class="modal">
+      <div class="modal-title" id="moveModalTitle">Move Instrument to Another Kit</div>
+      <div class="modal-row">
+        <label class="modal-label">Select destination kit</label>
+        <select class="modal-input" id="moveTarget" style="font-family:Georgia,serif"></select>
+      </div>
+      <div class="modal-btns">
+        <button class="modal-cancel" onclick="closeMoveModal()">Cancel</button>
+        <button class="modal-create" id="moveConfirmBtn" onclick="confirmMoveOrCopy()">Move</button>
+      </div>
+    </div>
+  </div>
+    <div id="tab1" style="display:none">
+      <div class="order-header">
+        <div>
+          <div class="order-title">Order List</div>
+          <div class="order-sub">Packages to order based on your kit quantities</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+            <button id="viewByKit" onclick="setOrderView('kit')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#1a1a1a;color:#fff;font-family:monospace">By Kit</button>
+            <button id="viewByInstr" onclick="setOrderView('instr')" style="padding:6px 12px;font-size:12px;border:none;cursor:pointer;background:#f5f5f5;color:#888;font-family:monospace">Master List</button>
+          </div>
+          <div class="order-total-box">
+            <div class="order-total-num" id="orderTotal">0</div>
+            <div class="order-total-label">total units</div>
+          </div>
+        </div>
+      </div>
+      <div id="order-container"></div>
+    </div>
+    <div id="tab2" style="display:none">
+      <div class="order-header">
+        <div>
+          <div class="order-title">Cost Summary</div>
+          <div class="order-sub">Package pricing — boxes to order & estimated spend</div>
+        </div>
+        <div class="order-total-box" style="background:#1a5276">
+          <div class="order-total-num" id="costTotal">$0</div>
+          <div class="order-total-label">estimated total</div>
+        </div>
+      </div>
+      <div id="cost-container"></div>
+      <p style="font-size:11px;color:#aaa;margin-top:12px;font-style:italic">* Only items with pricing entered are included. Enter pricing via the ✏️ edit panel in Kit Builder.</p>
+    </div>
+  </main>
+</div>
+
+<script>
+const INITIAL_KITS = [
+  { id:"ext_bg", name:"Extraction / Bone Graft", abbrev:"EXT/BG", defaultSets:6, color:"#C0392B", instruments:[
+    {id:"e1",name:"Mouth Mirror",s:"",c:"",q:2},{id:"e2",name:"Minnesota Retractor",s:"",c:"",q:2},
+    {id:"e3",name:"Perio Probe / Explorer",s:"",c:"",q:1},{id:"e4",name:"Irrigation Syringe",s:"",c:"",q:1},
+    {id:"e5",name:"Dappen Dish",s:"",c:"",q:1},{id:"e6",name:"Root Tip Pick, Double-End",s:"",c:"",q:1},
+    {id:"e7",name:"Molt 9 Periosteal Elevator",s:"",c:"",q:1},{id:"e8",name:"O/S Bone File",s:"",c:"",q:1},
+    {id:"e9",name:"Lucas Spoon Curette",s:"",c:"",q:1},{id:"e10",name:"Blade Handle #15c",s:"",c:"",q:1},
+    {id:"e11",name:"Needle Holder",s:"",c:"",q:1},{id:"e12",name:"Surgical Scissors",s:"",c:"",q:1},
+    {id:"e13",name:"Hemostat / Mosquito",s:"",c:"",q:1},{id:"e14",name:"Cotton Pliers",s:"",c:"",q:1},
+    {id:"e15",name:"Air/Water Syringe Tip (disposable)",s:"",c:"",q:1},{id:"e16",name:"Condenser",s:"",c:"",q:1},
+    {id:"e17",name:"Bone Graft Carrier",s:"",c:"",q:1},{id:"e18",name:"Membrane Scissors",s:"",c:"",q:1}
+  ]},
+  { id:"ccl", name:"CCL / Osseous Surgery", abbrev:"CCL", defaultSets:3, color:"#1A5276", instruments:[
+    {id:"c1",name:"Mouth Mirror",s:"",c:"",q:2},{id:"c2",name:"Minnesota Retractor",s:"",c:"",q:2},
+    {id:"c3",name:"Perio Probe / Explorer",s:"",c:"",q:1},{id:"c4",name:"Irrigation Syringe",s:"",c:"",q:1},
+    {id:"c5",name:"Prichard Paddle",s:"",c:"",q:1},{id:"c6",name:"Buser Periosteal Elevator",s:"",c:"",q:1},
+    {id:"c7",name:"Molt 9 Periosteal Elevator",s:"",c:"",q:1},{id:"c8",name:"GV / Orban Knife",s:"",c:"",q:1},
+    {id:"c9",name:"Kirkland Knife",s:"",c:"",q:1},{id:"c10",name:"Lucas Spoon Curette",s:"",c:"",q:1},
+    {id:"c11",name:"Double Bone File (Perio)",s:"",c:"",q:1},{id:"c12",name:"Hoexter Surgical Scaler (Double-End)",s:"",c:"",q:1},
+    {id:"c13",name:"Curette, Skinny / Mini-Five",s:"",c:"",q:1},{id:"c14",name:"Curette, Big / Universal",s:"",c:"",q:1},
+    {id:"c15",name:"Double-Ended Root Tip Pick",s:"",c:"",q:1},{id:"c16",name:"Blade Handle #15c",s:"",c:"",q:1},
+    {id:"c17",name:"Blade Handle #12b",s:"",c:"",q:1},{id:"c18",name:"Needle Holder",s:"",c:"",q:1},
+    {id:"c19",name:"Surgical Scissors",s:"",c:"",q:1},{id:"c20",name:"Hemostat",s:"",c:"",q:1},
+    {id:"c21",name:"Cotton Pliers",s:"",c:"",q:1},{id:"c22",name:"Air/Water Syringe Tip (disposable)",s:"",c:"",q:1}
+  ]},
+  { id:"elevators", name:"Elevator Module", abbrev:"ELEV", defaultSets:6, color:"#6C3483", note:"Separate cassette — grab per case", instruments:[
+    {id:"el1",name:"301 Straight Elevator",s:"",c:"",q:1},{id:"el2",name:"301 Wide Elevator",s:"",c:"",q:1},
+    {id:"el3",name:"Bendy Elevator",s:"",c:"",q:1},{id:"el4",name:"Cogswell A",s:"",c:"",q:1},
+    {id:"el5",name:"Cogswell B",s:"",c:"",q:1},{id:"el6",name:"Root Tip Pick, Right",s:"",c:"",q:1},
+    {id:"el7",name:"Root Tip Pick, Left",s:"",c:"",q:1},{id:"el8",name:"Crane Elevator",s:"",c:"",q:1}
+  ]},
+  { id:"luxators", name:"Luxator Set", abbrev:"LUX", defaultSets:1, color:"#117A65", note:"Shared set — pulled per case", instruments:[
+    {id:"lx1",name:"Luxator, Straight Narrow",s:"",c:"",q:2},{id:"lx2",name:"Luxator, Curved",s:"",c:"",q:2},
+    {id:"lx3",name:"Luxator, Wide",s:"",c:"",q:1}
+  ]},
+  { id:"forceps", name:"Forceps", abbrev:"FX", defaultSets:1, color:"#784212", note:"Individually bagged — select per case", instruments:[
+    {id:"f1",name:"#150 Universal Upper",s:"",c:"",q:4},{id:"f2",name:"#151 Universal Lower",s:"",c:"",q:4},
+    {id:"f3",name:"Ash / Birdbeak",s:"",c:"",q:3}
+  ]},
+  { id:"srp", name:"SRP / Hygiene", abbrev:"SRP", defaultSets:8, color:"#1E8449", note:"Consider 6–8 depending on hygiene volume", instruments:[
+    {id:"s1",name:"Mouth Mirror",s:"",c:"",q:1},{id:"s2",name:"Perio Probe",s:"",c:"",q:1},
+    {id:"s3",name:"Explorer",s:"",c:"",q:1},{id:"s4",name:"Cotton Pliers",s:"",c:"",q:1},
+    {id:"s5",name:"Montana Jack Scaler (Universal)",s:"",c:"",q:1},{id:"s6",name:"Sickle Scaler, Anterior",s:"",c:"",q:1},
+    {id:"s7",name:"Gracey 11/12",s:"",c:"",q:1},{id:"s8",name:"Gracey 13/14",s:"",c:"",q:1},
+    {id:"s9",name:"Irrigation Syringe",s:"",c:"",q:1},{id:"s10",name:"Air/Water Syringe Tip (disposable)",s:"",c:"",q:1}
+  ]},
+  { id:"burs", name:"Bur Packs", abbrev:"BURS", defaultSets:6, color:"#2E4057", note:"Pack per surgical case", instruments:[
+    {id:"b1",name:"Round Diamond Football Bur",s:"",c:"",q:1},{id:"b2",name:"CCL Bur",s:"",c:"",q:1},
+    {id:"b3",name:"Chamfer Bur",s:"",c:"",q:1},{id:"b4",name:"Komet Bur (osseous)",s:"",c:"",q:1},
+    {id:"b5",name:"557/702 Surgical Bur",s:"",c:"",q:2},{id:"b6",name:"Round Bur",s:"",c:"",q:1}
+  ]},
+  { id:"basic", name:"Basic / Exam", abbrev:"BASIC", defaultSets:10, color:"#566573", instruments:[
+    {id:"ba1",name:"Mouth Mirror",s:"",c:"",q:1},{id:"ba2",name:"Perio Probe",s:"",c:"",q:1},
+    {id:"ba3",name:"Explorer",s:"",c:"",q:1},{id:"ba4",name:"Cotton Pliers",s:"",c:"",q:1},
+    {id:"ba5",name:"Surgical Scissors",s:"",c:"",q:1}
+  ]}
+];
+
+let state = { kits: [], sets: {}, checked: {}, notes: {} };
+let saveTimer = null;
+let nextId = 9000;
+const uid = () => `x${nextId++}`;
+
+// --- Saved data (merged from all devices) ---
+const SAVED_STATE = {"kits":[{"id":"ext_bg","name":"Extraction / Bone Graft","abbrev":"EXT/BG","defaultSets":6,"color":"#C0392B","instruments":[{"id":"e1","name":"Mouth Mirror","s":"Eco Series #5 Dental Mirror, 6.5\" Handle, 10/Pk","c":"https://www.net32.com/ec/eco-series-5-dental-mirror-65-handle-d-185268","q":2},{"id":"e2","name":"Minnesota Retractor","s":"House Brand University of Minnesota Cheek Retractor 5.5, Stainless Steel","c":"https://www.net32.com/ec/house-brand-university-minnesota-cheek-retractor-55-d-106727","q":2},{"id":"e3","name":"Perio Probe / Explorer","s":"Expro, Periodontal Probe, Double-Ended, #23/CP12, 1/Pk","c":"https://frontierdental.com/us/en/product/expro-periodontal-probe-double-ended-23cp12-1pk-300342-230761","q":1},{"id":"e4","name":"Irrigation Syringe","s":"House Brand Aspirating Syringes KAS CW H","c":"https://www.net32.com/ec/house-brand-aspirating-syringes-kas-cw-h-d-91915","q":1},{"id":"e5","name":"Dappen Dish","s":"JMU Glass Dappen Dishes, 33x33mm, Assorted Colors, 12/Box","c":"https://www.net32.com/ec/jmu-dental-glass-dappen-dishes-3333-mm-d-180910","q":1},{"id":"e6","name":"Root Tip Pick, Double-End","s":"Heidbrink Root Tip Pick, #2/3, 1/Pk","c":"https://frontierdental.com/us/en/product/heidbrink-root-tip-pick-23-1pk-300120-230610","q":1},{"id":"e7","name":"Molt 9 Periosteal Elevator","s":"House Brand #9 Molt Periosteal Elevator","c":"https://www.net32.com/ec/heyer-9-molt-periosteal-elevator-d-6129","q":1},{"id":"e8","name":"Sugarman Perio/Bone File","s":"Air Series Stainless Steel Double-Ended #1/2 Sugarman Periodontal File, 1/Pk","c":"https://www.net32.com/ec/air-series-stainless-steel-doubleended-1-2-d-192181","q":1},{"id":"e9","name":"Lucas Spoon Curette","s":"Lucas Bone Curette, 2.8mm, #86, 1/Pk","c":"https://frontierdental.com/us/en/product/lucas-bone-curette-28-mm-86-1pk-300109-230601","q":1},{"id":"e10","name":"Blade Handle #15c","s":"Best Instruments #5 Stainless Steel Scalpel Handle","c":"https://frontierdental.com/us/en/product/best-instruments-5-stainless-steel-scalpel-handle-1pack-use-with-surgical-blades-for-tissue-separation-bi-1403-258004","q":1},{"id":"e11","name":"Needle Holder","s":"Artman Instruments Mayo Hegar Needle Holder, 6\", 1/Pk","c":"https://www.net32.com/ec/artman-instruments-mayo-hegar-needle-holder-6-d-182866","q":1},{"id":"e12","name":"Surgical Scissors","s":"","c":"","q":1},{"id":"e13","name":"Hemostat / Mosquito","s":"","c":"","q":1},{"id":"e14","name":"Cotton Pliers","s":"","c":"","q":1},{"id":"e15","name":"Air/Water Syringe Tip (metal)","s":"House Brand Air/Water Syringe Tips, 25/Pk","c":"https://www.net32.com/ec/house-brand-air-water-syringe-tips-25-d-164348","q":1,"pkgQty":25,"pkgPrice":19.03,"supplier":"net32"},{"id":"e16","name":"Condenser","s":"","c":"","q":1},{"id":"e17","name":"Bone Graft Carrier","s":"","c":"","q":1},{"id":"e18","name":"Membrane Scissors","s":"","c":"","q":1},{"id":"x9000","name":"O/S Bone File","s":"Best Bone Files Howard #10, 1/Pk","c":"https://www.net32.com/ec/best-bone-files-howard-10-1-pk-d-187175","q":1}]},{"id":"ccl","name":"CCL / Osseous Surgery","abbrev":"CCL","defaultSets":3,"color":"#1A5276","instruments":[{"id":"c1","name":"Mouth Mirror","s":"","c":"","q":2},{"id":"c2","name":"Minnesota Retractor","s":"","c":"","q":2},{"id":"c3","name":"Perio Probe / Explorer","s":"","c":"","q":1},{"id":"c4","name":"Irrigation Syringe","s":"","c":"","q":1},{"id":"c5","name":"Prichard Paddle","s":"","c":"","q":1},{"id":"c6","name":"Buser Periosteal Elevator","s":"","c":"","q":1},{"id":"c7","name":"Molt 9 Periosteal Elevator","s":"","c":"","q":1},{"id":"c8","name":"GV / Orban Knife","s":"","c":"","q":1},{"id":"c9","name":"Kirkland Knife","s":"","c":"","q":1},{"id":"c10","name":"Lucas Spoon Curette","s":"","c":"","q":1},{"id":"c11","name":"Double Bone File (Perio)","s":"","c":"","q":1},{"id":"c12","name":"Hoexter Surgical Scaler (Double-End)","s":"","c":"","q":1},{"id":"c13","name":"Curette, Skinny / Mini-Five","s":"","c":"","q":1},{"id":"c14","name":"Curette, Big / Universal","s":"","c":"","q":1},{"id":"c15","name":"Double-Ended Root Tip Pick","s":"","c":"","q":1},{"id":"c16","name":"Blade Handle #15c","s":"","c":"","q":1},{"id":"c17","name":"Blade Handle #12b","s":"","c":"","q":1},{"id":"c18","name":"Needle Holder","s":"","c":"","q":1},{"id":"c19","name":"Surgical Scissors","s":"","c":"","q":1},{"id":"c20","name":"Hemostat","s":"","c":"","q":1},{"id":"c21","name":"Cotton Pliers","s":"","c":"","q":1},{"id":"c22","name":"Air/Water Syringe Tip (disposable)","s":"","c":"","q":1}]},{"id":"elevators","name":"Elevator Module","abbrev":"ELEV","defaultSets":6,"color":"#6C3483","note":"Separate cassette — grab per case","instruments":[{"id":"el1","name":"301 Straight Elevator","s":"","c":"","q":1},{"id":"el2","name":"301 Wide Elevator","s":"","c":"","q":1},{"id":"el3","name":"Bendy Elevator","s":"","c":"","q":1},{"id":"el4","name":"Cogswell A","s":"","c":"","q":1},{"id":"el5","name":"Cogswell B","s":"","c":"","q":1},{"id":"el6","name":"Root Tip Pick, Right","s":"","c":"","q":1},{"id":"el7","name":"Root Tip Pick, Left","s":"","c":"","q":1},{"id":"el8","name":"Crane Elevator","s":"","c":"","q":1}]},{"id":"luxators","name":"Luxator Set","abbrev":"LUX","defaultSets":1,"color":"#117A65","note":"Shared set — pulled per case","instruments":[{"id":"lx1","name":"Luxator, Straight Narrow","s":"","c":"","q":2},{"id":"lx2","name":"Luxator, Curved","s":"","c":"","q":2},{"id":"lx3","name":"Luxator, Wide","s":"","c":"","q":1}]},{"id":"forceps","name":"Forceps","abbrev":"FX","defaultSets":1,"color":"#784212","note":"Individually bagged — select per case","instruments":[{"id":"f1","name":"#150 Universal Upper","s":"","c":"","q":4},{"id":"f2","name":"#151 Universal Lower","s":"","c":"","q":4},{"id":"f3","name":"Ash / Birdbeak","s":"","c":"","q":3}]},{"id":"srp","name":"SRP / Hygiene","abbrev":"SRP","defaultSets":8,"color":"#1E8449","note":"Consider 6–8 depending on hygiene volume","instruments":[{"id":"s1","name":"Mouth Mirror","s":"Eco Series #5 Dental Mirror, 6.5\" Handle, 10/Pk","c":"https://www.net32.com/ec/eco-series-5-dental-mirror-65-handle-d-185268","q":1,"pkgPrice":17.99,"pkgQty":10,"supplier":"net32"},{"id":"s2","name":"Perio Probe","s":"House Brand CP-12 color-coded single end probe (3-6-9-12 mm)","c":"https://www.net32.com/ec/house-brand-cp12-colorcoded-single-end-probe-d-107015","q":1,"pkgPrice":6.63,"supplier":"net32"},{"id":"s3","name":"Explorer (double ended)","s":"House Brand #5 (#17/23) double end explorer","c":"https://www.net32.com/ec/house-brand-5-17-23-double-end-d-4759","q":1,"pkgPrice":4.65,"supplier":"net32"},{"id":"s4","name":"Cotton Pliers","s":"House Brand #317 College Cotton and Dressing Pliers 6\" Regular Serrated","c":"https://www.net32.com/ec/house-brand-317-college-cotton-dressing-pliers-d-5673","q":1,"pkgPrice":1.31,"supplier":"net32"},{"id":"s5","name":"Montana Jack Scaler (Universal)","s":"Best Stainless Steel Montana Jack Scaler Curette, 1/Pk","c":"https://www.net32.com/ec/best-stainless-steel-montana-jack-scaler-curette-d-182284","q":1,"pkgPrice":19.73,"supplier":"net32"},{"id":"s6","name":"Sickle Scaler, Anterior H6/7","s":"SUPPRA Double-Ended SH6/7 Series Anterior Scaler, 5/16\" Stainless Steel Handle, 1/Pk","c":"https://www.net32.com/ec/suppra-doubleended-sh6-7-series-anterior-scaler-d-180166","q":1,"pkgPrice":20.5},{"id":"s7","name":"Gracey 11/12","s":"","c":"","q":1},{"id":"s8","name":"Gracey 13/14","s":"","c":"","q":1},{"id":"s9","name":"Aspirating Syringe","s":"House Brand Cook-Waite type 1.8cc Aspirating Syringe","c":"https://www.net32.com/ec/house-brand-cookwaite-type-18-cc-aspirating-d-5006","q":1,"pkgPrice":10.11,"supplier":"net32"},{"id":"s10","name":"Air/Water Syringe Tip (metal)","s":"House Brand Air/Water Syringe Tips, 25/Pk","c":"https://www.net32.com/ec/house-brand-air-water-syringe-tips-25-d-164348","q":1,"pkgQty":25,"pkgPrice":19.03,"supplier":"net32"},{"id":"x9005","name":"204s Posterior Sickle","s":"SUPPRA Double-ended 204 Series Hygienist Scaler, Fine, 5/16\" Stainless Steel Handle, 1/Pk","c":"https://www.net32.com/ec/suppra-doubleended-204-series-hygienist-scaler-fine-d-180163","q":1,"pkgPrice":20.5,"supplier":"net32"}]},{"id":"burs","name":"Bur Packs","abbrev":"BURS","defaultSets":6,"color":"#2E4057","note":"Pack per surgical case","instruments":[{"id":"b1","name":"Round Diamond Football Bur","s":"","c":"","q":1},{"id":"b2","name":"CCL Bur","s":"","c":"","q":1},{"id":"b3","name":"Chamfer Bur","s":"","c":"","q":1},{"id":"b4","name":"Komet Bur (osseous)","s":"","c":"","q":1},{"id":"b5","name":"557/702 Surgical Bur","s":"","c":"","q":2},{"id":"b6","name":"Round Bur","s":"","c":"","q":1}]},{"id":"basic","name":"Basic / Exam","abbrev":"BASIC","defaultSets":10,"color":"#566573","instruments":[{"id":"ba1","name":"Mouth Mirror","s":"Eco Series #5 Dental Mirror, 6.5\" Handle, 10/Pk","c":"https://www.net32.com/ec/eco-series-5-dental-mirror-65-handle-d-185268","q":1,"pkgPrice":17.99,"pkgQty":10,"supplier":"net32"},{"id":"ba2","name":"Perio Probe","s":"House Brand CP-12 color-coded single end probe (3-6-9-12 mm)","c":"https://www.net32.com/ec/house-brand-cp12-colorcoded-single-end-probe-d-107015","q":1,"pkgPrice":6.63,"supplier":"net32"},{"id":"ba3","name":"Explorer (double ended)","s":"House Brand #5 (#17/23) double end explorer","c":"https://www.net32.com/ec/house-brand-5-17-23-double-end-d-4759","q":1,"pkgPrice":4.65,"supplier":"net32"},{"id":"ba4","name":"Cotton Pliers","s":"House Brand #317 College Cotton and Dressing Pliers 6\" Regular Serrated","c":"https://www.net32.com/ec/house-brand-317-college-cotton-dressing-pliers-d-5673","q":1,"pkgPrice":1.31,"supplier":"net32"},{"id":"ba5","name":"Small Scissors","s":"House Brand Scissor - Iris 4.5\" Straight","c":"https://www.net32.com/ec/house-brand-scissor-iris-45-straight-used-d-131694","q":1,"pkgPrice":4.75,"supplier":"net32"}]},{"id":"custom_x9006","name":"Set of Graceys","abbrev":"SOG","color":"#27AE60","note":"","instruments":[{"id":"x9007","name":"Gracey Kit","s":"Artman Instruments Gracey Curettes Set, 7/Pk","c":"https://www.net32.com/ec/artman-instruments-gracey-curettes-set-7-pk-d-182409","q":1,"pkgPrice":87.99,"supplier":"net32"}]}],"sets":{"ext_bg":6,"ccl":3,"elevators":6,"luxators":1,"forceps":1,"srp":8,"burs":6,"basic":10,"custom_x9006":1},"checked":{},"notes":{}};
+
+// --- Firebase + localStorage fallback storage ---
+const FB_DATA_URL = "https://periokits-default-rtdb.firebaseio.com/data.json";
+const LS_KEY = "periokits_data";
+
+async function fbGet() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(FB_DATA_URL, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error("read failed");
+    return await res.json();
+  } catch(e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
+async function fbSet(data) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(FB_DATA_URL, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error("write failed");
+  } catch(e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
+async function loadData() {
+  const ls = (msg) => { const el = document.getElementById("loadStatus"); if(el) el.textContent = msg; };
+  ls("Connecting to database…");
+  try {
+    ls("Fetching data…");
+    const data = await fbGet();
+    ls("Data received…");
+    if (data && data.kits && data.kits.length > 0) {
+      state = data;
+      if (!state.sets) state.sets = {};
+      if (!state.checked) state.checked = {};
+      if (!state.notes) state.notes = {};
+      state.kits.forEach(k => { if (state.sets[k.id] === undefined) state.sets[k.id] = k.defaultSets || 1; });
+      ls("Rendering…");
+    } else {
+      ls("Seeding database…");
+      state = JSON.parse(JSON.stringify(SAVED_STATE));
+      await fbSet(state);
+    }
+  } catch(e) {
+    ls("Firebase unavailable, using local backup… (" + e.message + ")");
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) { state = JSON.parse(raw); }
+      else { state = JSON.parse(JSON.stringify(SAVED_STATE)); }
+    } catch(e2) {
+      state = JSON.parse(JSON.stringify(SAVED_STATE));
+    }
+  }
+  render();
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("app").style.display = "block";
+}
+
+function initState() {
+  state.kits = JSON.parse(JSON.stringify(INITIAL_KITS));
+  state.sets = {};
+  state.checked = {};
+  state.notes = {};
+  INITIAL_KITS.forEach(k => state.sets[k.id] = k.defaultSets);
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  setStatus("saving");
+  saveTimer = setTimeout(async () => {
+    try {
+      await fbSet(state);
+      localStorage.setItem(LS_KEY, JSON.stringify(state));
+      setStatus("saved");
+      setTimeout(() => setStatus(""), 2000);
+    } catch(e) {
+      // Firebase failed — save locally at least
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e2) {}
+      setStatus("error");
+      setTimeout(() => setStatus(""), 3000);
+    }
+  }, 800);
+}
+
+function setStatus(s) {
+  const el = document.getElementById("saveStatus");
+  if (s === "saving") { el.textContent = "Saving…"; el.style.color = "#aaa"; }
+  else if (s === "saved") { el.textContent = "✓ Saved"; el.style.color = "#27ae60"; }
+  else if (s === "error") { el.textContent = "Save failed"; el.style.color = "#e74c3c"; }
+  else { el.textContent = ""; }
+}
+
+// --- Tabs ---
+let activeTab = 0;
+let orderView = 'kit';
+
+function switchTab(i) {
+  activeTab = i;
+  document.getElementById("tab0").style.display = i === 0 ? "block" : "none";
+  document.getElementById("tab1").style.display = i === 1 ? "block" : "none";
+  document.getElementById("tab2").style.display = i === 2 ? "block" : "none";
+  document.querySelectorAll(".tab").forEach((t, idx) => t.classList.toggle("active", idx === i));
+  if (i === 1) renderOrderList();
+  if (i === 2) renderCostList();
+}
+
+function setOrderView(v) {
+  orderView = v;
+  document.getElementById("viewByKit").style.background = v==="kit" ? "#1a1a1a" : "#f5f5f5";
+  document.getElementById("viewByKit").style.color = v==="kit" ? "#fff" : "#888";
+  document.getElementById("viewByInstr").style.background = v==="instr" ? "#1a1a1a" : "#f5f5f5";
+  document.getElementById("viewByInstr").style.color = v==="instr" ? "#fff" : "#888";
+  renderOrderList();
+}
+
+function buildMasterList() {
+  const map = {};
+  state.kits.forEach(kit => {
+    const numSets = state.sets[kit.id] || 0;
+    kit.instruments.forEach(instr => {
+      const key = (instr.s || instr.name).toLowerCase().trim();
+      if (!map[key]) {
+        map[key] = { name: instr.s || instr.name, genericName: instr.name, code: instr.c||"", supplier: instr.supplier||"", pkgQty: instr.pkgQty||1, pkgPrice: instr.pkgPrice||0, totalUnits: 0, kits: [] };
+      }
+      const units = instr.q * numSets;
+      map[key].totalUnits += units;
+      map[key].kits.push({ kitName: kit.name, kitColor: kit.color, units });
+      if (instr.pkgPrice) { map[key].pkgQty = instr.pkgQty||1; map[key].pkgPrice = instr.pkgPrice; map[key].code = instr.c||map[key].code; map[key].supplier = instr.supplier||map[key].supplier; }
+    });
+  });
+  return Object.values(map);
+}
+
+// --- Order List ---
+function renderOrderList() {
+  const container = document.getElementById("order-container");
+  container.innerHTML = "";
+  let total = 0;
+
+  if (orderView === "kit") {
+    state.kits.forEach(kit => {
+      const numSets = state.sets[kit.id] || 0;
+      let rowsHTML = kit.instruments.map((instr, i) => {
+        const qty = instr.q * numSets;
+        total += qty;
+        const displayName = instr.s || instr.name;
+        const pkgQty = instr.pkgQty || 1;
+        const pkgsNeeded = pkgQty > 1 ? Math.ceil(qty / pkgQty) : null;
+        return `<div class="order-row${i%2===0?" alt":""}">
+          <div style="flex:3;min-width:0">
+            <div class="order-instr-name">${escHtml(displayName)}</div>
+            ${instr.s && instr.s !== instr.name ? `<div class="order-instr-generic">${escHtml(instr.name)}</div>` : ""}
+            ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(instr.supplier)}</div>` : ""}
+          </div>
+          <span style="flex:1.2;font-size:11px;color:${kit.color};font-family:monospace">${instr.c ? "#"+escHtml(instr.c) : "—"}</span>
+          <span style="flex:0.6;text-align:center;color:#888;font-size:12px">${instr.q}×${numSets}</span>
+          <span style="flex:0.6;text-align:center;font-weight:700;font-size:13px">${qty}</span>
+          <span style="flex:0.9;text-align:right;font-size:12px;color:#555">${pkgsNeeded ? `<strong>${pkgsNeeded}</strong> pkg<br><span style="font-size:10px;color:#aaa">${pkgQty}/pkg</span>` : "—"}</span>
+        </div>`;
+      }).join("");
+      container.innerHTML += `
+        <div class="order-section">
+          <div class="order-section-head" style="border-color:${kit.color}">
+            <span class="order-dot" style="background:${kit.color}"></span>${escHtml(kit.name)}
+          </div>
+          <div class="order-table">
+            <div class="order-table-head">
+              <span style="flex:3">Instrument</span><span style="flex:1.2">Code</span>
+              <span style="flex:0.6;text-align:center">Qty</span><span style="flex:0.6;text-align:center">Units</span>
+              <span style="flex:0.9;text-align:right">Pkgs</span>
+            </div>${rowsHTML}
+          </div>
+        </div>`;
+    });
+  } else {
+    const master = buildMasterList();
+    let rowsHTML = master.map((item, i) => {
+      total += item.totalUnits;
+      const pkgQty = item.pkgQty || 1;
+      const pkgsNeeded = pkgQty > 1 ? Math.ceil(item.totalUnits / pkgQty) : null;
+      const kitDots = item.kits.map(k => `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${k.kitColor};margin-right:2px"></span>`).join("");
+      return `<div class="order-row${i%2===0?" alt":""}">
+        <div style="flex:3;min-width:0">
+          <div class="order-instr-name">${escHtml(item.name)}</div>
+          ${item.name !== item.genericName ? `<div class="order-instr-generic">${escHtml(item.genericName)}</div>` : ""}
+          <div style="margin-top:3px">${kitDots}</div>
+        </div>
+        <span style="flex:1.2;font-size:11px;color:#2980B9;font-family:monospace">${item.code ? "#"+escHtml(item.code) : "—"}</span>
+        <span style="flex:0.7;text-align:center;font-weight:700;font-size:14px">${item.totalUnits}</span>
+        <span style="flex:0.9;text-align:right;font-size:12px;color:#555">${pkgsNeeded ? `<strong>${pkgsNeeded}</strong> pkg<br><span style="font-size:10px;color:#aaa">${pkgQty}/pkg</span>` : "—"}</span>
+      </div>`;
+    }).join("");
+    container.innerHTML = `
+      <div class="order-section">
+        <div class="order-section-head" style="border-color:#2980B9">
+          <span class="order-dot" style="background:#2980B9"></span>ALL INSTRUMENTS — CONSOLIDATED
+        </div>
+        <div class="order-table">
+          <div class="order-table-head">
+            <span style="flex:3">Instrument</span><span style="flex:1.2">Code</span>
+            <span style="flex:0.7;text-align:center">Total Units</span><span style="flex:0.9;text-align:right">Pkgs to Order</span>
+          </div>${rowsHTML}
+        </div>
+      </div>`;
+  }
+  document.getElementById("orderTotal").textContent = total;
+}
+
+// --- Cost List ---
+function renderCostList() {
+  const container = document.getElementById("cost-container");
+  container.innerHTML = "";
+  let grandTotal = 0;
+
+  state.kits.forEach(kit => {
+    const numSets = state.sets[kit.id] || 0;
+    const priced = kit.instruments.filter(i => i.pkgPrice);
+    if (!priced.length) return;
+    let kitCost = 0;
+    let rowsHTML = priced.map((instr, i) => {
+      const totalUnits = instr.q * numSets;
+      const pkgQty = instr.pkgQty || 1;
+      const pkgsNeeded = Math.ceil(totalUnits / pkgQty);
+      const cost = pkgsNeeded * (instr.pkgPrice || 0);
+      kitCost += cost; grandTotal += cost;
+      const displayName = instr.s || instr.name;
+      return `<div class="order-row${i%2===0?" alt":""}">
+        <div style="flex:3;min-width:0">
+          <div style="font-size:13px">${escHtml(displayName)}</div>
+          ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(instr.supplier)}</div>` : ""}
+        </div>
+        <span style="flex:1;text-align:center;font-size:12px;color:#888">${totalUnits} units</span>
+        <span style="flex:1.2;text-align:center;font-size:12px;color:#888">${pkgsNeeded} pkg × $${parseFloat(instr.pkgPrice).toFixed(2)}</span>
+        <span style="flex:0.8;text-align:right;font-weight:700;color:${kit.color}">$${cost.toFixed(2)}</span>
+      </div>`;
+    }).join("");
+    container.innerHTML += `
+      <div class="order-section">
+        <div class="order-section-head" style="border-color:${kit.color};justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px"><span class="order-dot" style="background:${kit.color}"></span>${escHtml(kit.name)}</div>
+          <span style="font-size:13px;color:${kit.color}">$${kitCost.toFixed(2)}</span>
+        </div>
+        <div class="order-table">
+          <div class="order-table-head">
+            <span style="flex:3">Instrument</span><span style="flex:1;text-align:center">Units</span>
+            <span style="flex:1.2;text-align:center">Calculation</span><span style="flex:0.8;text-align:right">Cost</span>
+          </div>${rowsHTML}
+        </div>
+      </div>`;
+  });
+
+  if (!grandTotal) {
+    container.innerHTML = `<div style="text-align:center;padding:48px 20px;color:#aaa;font-style:italic;line-height:1.8">No pricing entered yet.<br>Tap ✏️ on any instrument in Kit Builder<br>to add package size and price.</div>`;
+  }
+  document.getElementById("costTotal").textContent = "$" + grandTotal.toFixed(2);
+}
+
+let expandedKit = null;
+let editingInstr = null; // "kitId_instrId"
+
+function render() {
+  try {
+    _render();
+  } catch(e) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("kits-container").innerHTML = `<div style="padding:20px;color:#e74c3c;font-family:monospace;font-size:12px">Render error: ${e.message}<br><br><button onclick="resetState()" style="padding:8px 16px;background:#e74c3c;color:#fff;border:none;border-radius:6px;cursor:pointer">Reset to defaults</button></div>`;
+  }
+}
+
+function resetState() {
+  if (!confirm("Reset all data to defaults? This cannot be undone.")) return;
+  state = JSON.parse(JSON.stringify(SAVED_STATE));
+  scheduleSave();
+  _render();
+}
+
+function _render() {
+  const container = document.getElementById("kits-container");
+  container.innerHTML = "";
+  state.kits.forEach(kit => {
+    const done = kit.instruments.filter(i => state.checked[kit.id + "_" + i.id]).length;
+    const total = kit.instruments.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const numSets = state.sets[kit.id] || 0;
+    const isOpen = expandedKit === kit.id;
+    const safeKitId = kit.id.replace(/'/g,"\\'");
+
+    const card = document.createElement("div");
+    card.className = "kit-card";
+
+    let instrHTML = kit.instruments.map(instr => {
+      const key = kit.id + "_" + instr.id;
+      const isDone = !!state.checked[key];
+      const editKey = kit.id + "__" + instr.id;
+      const isEdit = editingInstr === editKey;
+      const displayName = instr.s || instr.name;
+      const totalQty = instr.q * numSets;
+      const safeKitId = kit.id.replace(/'/g,"\\'");
+      const safeInstrId = instr.id.replace(/'/g,"\\'");
+
+      return `
+        <div class="instr-row${isDone && !isEdit ? " done" : ""}" onclick="toggleCheck('${safeKitId}','${safeInstrId}')">
+          <div class="checkbox" id="cb_${key}" style="${isDone ? `border-color:${kit.color};background:${kit.color}` : ""}">
+            ${isDone ? "✓" : ""}
+          </div>
+          <div class="instr-info">
+            <div class="instr-name${isDone ? " struck" : ""}">${escHtml(displayName)}</div>
+            ${instr.s && instr.s !== instr.name ? `<div class="instr-generic">${escHtml(instr.name)}</div>` : ""}
+            ${instr.c ? `<div class="instr-code" style="color:${kit.color}">#${escHtml(instr.c.length > 40 ? instr.c.substring(0,40)+"…" : instr.c)}</div>` : ""}
+            ${instr.pkgQty && instr.pkgPrice ? `<div style="font-size:11px;color:#888;margin-top:1px">📦 ${instr.pkgQty}/pkg @ $${(parseFloat(instr.pkgPrice)||0).toFixed(2)}</div>` : (instr.pkgPrice ? `<div style="font-size:11px;color:#888;margin-top:1px">$${(parseFloat(instr.pkgPrice)||0).toFixed(2)}/pkg</div>` : "")}
+          </div>
+          <span class="instr-qty">×${instr.q}</span>
+          <span class="instr-total">= ${totalQty}</span>
+          <button class="icon-btn" style="color:${isEdit ? kit.color : "#aaa"}" onclick="event.stopPropagation();toggleEdit('${safeKitId}','${safeInstrId}')">✏️</button>
+          <button class="icon-btn" style="color:#ccc" onclick="event.stopPropagation();removeInstr('${safeKitId}','${safeInstrId}')">🗑</button>
+        </div>
+        <div class="edit-panel${isEdit ? " open" : ""}" id="ep_${editKey}" style="border-color:${kit.color}55">
+          <div class="edit-row">
+            <label class="edit-label">Generic name</label>
+            <input class="edit-input" value="${escHtml(instr.name)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','name',this.value)" placeholder="e.g. Minnesota Retractor">
+          </div>
+          <div class="edit-row">
+            <label class="edit-label">Specific model / supplier name</label>
+            <input class="edit-input" value="${escHtml(instr.s)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','s',this.value)" placeholder="e.g. Hu-Friedy MN4R Minnesota">
+          </div>
+          <div class="edit-row">
+            <label class="edit-label">Item / catalog code</label>
+            <input class="edit-input" value="${escHtml(instr.c)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','c',this.value)" placeholder="e.g. HF-MN4R or URL">
+          </div>
+          <div class="edit-row">
+            <label class="edit-label">Qty per set</label>
+            <input class="edit-input small" type="number" min="1" max="20" value="${instr.q}" oninput="updateInstr('${safeKitId}','${safeInstrId}','q',Math.max(1,parseInt(this.value)||1))">
+          </div>
+          <div style="border-top:1px solid #eee;margin:10px 0 10px;"></div>
+          <div style="font-size:10px;font-family:monospace;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:8px;">📦 Packaging & Pricing</div>
+          <div style="display:flex;gap:8px;">
+            <div class="edit-row" style="flex:1">
+              <label class="edit-label">Pkg quantity (units/box)</label>
+              <input class="edit-input" type="number" min="1" value="${instr.pkgQty||1}" oninput="updateInstr('${safeKitId}','${safeInstrId}','pkgQty',Math.max(1,parseInt(this.value)||1))" placeholder="e.g. 10">
+            </div>
+            <div class="edit-row" style="flex:1">
+              <label class="edit-label">Price per package ($)</label>
+              <input class="edit-input" type="number" min="0" step="0.01" value="${instr.pkgPrice||""}" oninput="updateInstr('${safeKitId}','${safeInstrId}','pkgPrice',parseFloat(this.value)||0)" placeholder="e.g. 25.00">
+            </div>
+          </div>
+          <div class="edit-row">
+            <label class="edit-label">Supplier</label>
+            <input class="edit-input" value="${escHtml(instr.supplier||"")}" oninput="updateInstr('${safeKitId}','${safeInstrId}','supplier',this.value)" placeholder="e.g. Henry Schein, Hu-Friedy">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <button class="done-btn" style="background:${kit.color}" onclick="toggleEdit('${safeKitId}','${safeInstrId}')">Done</button>
+            <button class="done-btn" style="background:#2980B9" onclick="openMoveModal('${safeKitId}','${safeInstrId}','move')">↗ Move to Kit</button>
+            <button class="done-btn" style="background:#117A65" onclick="openMoveModal('${safeKitId}','${safeInstrId}','copy')">⧉ Copy to Kit</button>
+          </div>
+        </div>`;
+    }).join("");
+
+    card.innerHTML = `
+      <button class="kit-header" onclick="toggleKit('${safeKitId}')">
+        <div class="kit-header-left">
+          <span class="kit-badge" style="background:${kit.color}">${kit.abbrev}</span>
+          <div>
+            <div class="kit-name">${escHtml(kit.name)}</div>
+            ${kit.note ? `<div class="kit-note">${escHtml(kit.note)}</div>` : ""}
+          </div>
+        </div>
+        <div class="kit-header-right">
+          <div class="progress-wrap">
+            <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${kit.color}"></div></div>
+            <span class="progress-label">${done}/${total}</span>
+          </div>
+          <div class="sets-control" onclick="event.stopPropagation()">
+            <button class="stepper" onclick="changeSets('${safeKitId}',-1)">−</button>
+            <span class="sets-num" id="sn_${kit.id}">${numSets}</span>
+            <button class="stepper" onclick="changeSets('${safeKitId}',1)">+</button>
+            <span class="sets-label">sets</span>
+          </div>
+          <span class="chevron">${isOpen ? "▲" : "▼"}</span>
+          <button class="delete-kit-btn" style="color:#aaa" onclick="event.stopPropagation();openEditKitModal('${safeKitId}')" title="Edit kit name/color">✎</button>
+          <button class="delete-kit-btn" style="color:#aaa" onclick="event.stopPropagation();duplicateKit('${safeKitId}')" title="Duplicate kit">⧉</button>
+          <button class="delete-kit-btn" onclick="event.stopPropagation();deleteKit('${safeKitId}')" title="Delete kit">✕</button>
+        </div>
+      </button>
+      <div class="kit-body${isOpen ? " open" : ""}" id="kb_${kit.id}">
+        ${instrHTML}
+        <button class="add-btn" style="color:${kit.color};border-color:${kit.color}55" onclick="addInstr('${safeKitId}')">＋ Add instrument to this kit</button>
+        <div class="note-wrap">
+          <textarea class="note-input" placeholder="Notes for this kit…" oninput="updateNote('${kit.id}',this.value)">${escHtml(state.notes[kit.id] || "")}</textarea>
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function escHtml(s) {
+  return (s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function toggleKit(kitId) {
+  expandedKit = expandedKit === kitId ? null : kitId;
+  render();
+}
+
+function toggleCheck(kitId, instrId) {
+  const editKey = kitId + "__" + instrId;
+  if (editingInstr === editKey) return;
+  const key = kitId + "_" + instrId;
+  state.checked[key] = !state.checked[key];
+  scheduleSave();
+  render();
+}
+
+function toggleEdit(kitId, instrId) {
+  const editKey = kitId + "__" + instrId;
+  editingInstr = editingInstr === editKey ? null : editKey;
+  render();
+}
+
+function updateInstr(kitId, instrId, field, value) {
+  const kit = state.kits.find(k => k.id === kitId);
+  if (!kit) return;
+  const instr = kit.instruments.find(i => i.id === instrId);
+  if (!instr) return;
+  instr[field] = value;
+  scheduleSave();
+  // Just update the display name without full re-render for smoothness
+  const displayName = instr.s || instr.name;
+  const nameEl = document.querySelector(`#ep_${kitId}__${instrId}`)?.previousElementSibling?.querySelector(".instr-name");
+  if (nameEl) nameEl.textContent = displayName;
+}
+
+function changeSets(kitId, delta) {
+  state.sets[kitId] = Math.max(0, (state.sets[kitId] || 0) + delta);
+  scheduleSave();
+  render();
+}
+
+function addInstr(kitId) {
+  const kit = state.kits.find(k => k.id === kitId);
+  if (!kit) return;
+  const newInstr = { id: uid(), name: "New Instrument", s: "", c: "", q: 1 };
+  kit.instruments.push(newInstr);
+  editingInstr = kitId + "__" + newInstr.id;
+  scheduleSave();
+  render();
+}
+
+function removeInstr(kitId, instrId) {
+  const kit = state.kits.find(k => k.id === kitId);
+  if (!kit) return;
+  kit.instruments = kit.instruments.filter(i => i.id !== instrId);
+  delete state.checked[kitId + "_" + instrId];
+  scheduleSave();
+  render();
+}
+
+function updateNote(kitId, value) {
+  state.notes[kitId] = value;
+  scheduleSave();
+}
+
+// --- New Kit Modal ---
+const COLORS = ["#C0392B","#E67E22","#D4AC0D","#1E8449","#117A65","#1A5276","#6C3483","#784212","#566573","#2E4057","#C0392B","#922B21"];
+const PALETTE = ["#C0392B","#E67E22","#F1C40F","#27AE60","#117A65","#2980B9","#1A5276","#6C3483","#784212","#566573","#2E4057","#17202A"];
+let selectedColor = PALETTE[5];
+
+function openNewKitModal() {
+  document.getElementById("nkName").value = "";
+  document.getElementById("nkAbbrev").value = "";
+  document.getElementById("nkSets").value = "3";
+  document.getElementById("nkNote").value = "";
+  selectedColor = PALETTE[5];
+  renderSwatches();
+  document.getElementById("newKitModal").classList.add("open");
+  setTimeout(() => document.getElementById("nkName").focus(), 100);
+}
+
+function closeNewKitModal() {
+  document.getElementById("newKitModal").classList.remove("open");
+}
+
+function renderSwatches() {
+  const el = document.getElementById("colorSwatches");
+  el.innerHTML = PALETTE.map(c => `<div class="swatch${c===selectedColor?" selected":""}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join("");
+  document.getElementById("createKitBtn").style.background = selectedColor;
+}
+
+function pickColor(c) {
+  selectedColor = c;
+  renderSwatches();
+}
+
+function syncAbbrev() {
+  const name = document.getElementById("nkName").value;
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const auto = words.map(w => w[0]).join("").toUpperCase().slice(0,5);
+  document.getElementById("nkAbbrev").value = auto;
+}
+
+function createKit() {
+  const name = document.getElementById("nkName").value.trim();
+  const abbrev = document.getElementById("nkAbbrev").value.trim().toUpperCase() || "KIT";
+  const sets = Math.max(1, parseInt(document.getElementById("nkSets").value) || 1);
+  const note = document.getElementById("nkNote").value.trim();
+  if (!name) { document.getElementById("nkName").focus(); return; }
+  const kitId = "custom_" + uid();
+  const newKit = { id: kitId, name, abbrev, color: selectedColor, note, instruments: [] };
+  state.kits.push(newKit);
+  state.sets[kitId] = sets;
+  expandedKit = kitId;
+  scheduleSave();
+  closeNewKitModal();
+  render();
+}
+
+function deleteKit(kitId) {
+  const kit = state.kits.find(k => k.id === kitId);
+  if (!kit) return;
+  if (!confirm(`Delete the "${kit.name}" kit? This cannot be undone.`)) return;
+  state.kits = state.kits.filter(k => k.id !== kitId);
+  Object.keys(state.checked).forEach(k => { if (k.startsWith(kitId + "_")) delete state.checked[k]; });
+  delete state.sets[kitId];
+  delete state.notes[kitId];
+  if (expandedKit === kitId) expandedKit = null;
+  scheduleSave();
+  render();
+}
+
+function duplicateKit(kitId) {
+  const src = state.kits.find(k => k.id === kitId);
+  if (!src) return;
+  const newId = "dup_" + uid();
+  const newKit = JSON.parse(JSON.stringify(src)); // full deep copy incl supplier/pricing
+  newKit.id = newId;
+  newKit.name = src.name + " (Copy)";
+  newKit.instruments = newKit.instruments.map(i => ({ ...i, id: uid() }));
+  state.kits.push(newKit);
+  state.sets[newId] = state.sets[kitId] || src.defaultSets || 1;
+  state.notes[newId] = state.notes[kitId] || "";
+  expandedKit = newId;
+  scheduleSave();
+  render();
+  // Auto-open edit modal so they can rename immediately
+  setTimeout(() => openEditKitModal(newId), 100);
+}
+
+// --- Edit Kit Modal ---
+let editingKitId = null;
+let editKitColor = "#2980B9";
+
+function openEditKitModal(kitId) {
+  const kit = state.kits.find(k => k.id === kitId);
+  if (!kit) return;
+  editingKitId = kitId;
+  editKitColor = kit.color;
+  document.getElementById("ekName").value = kit.name;
+  document.getElementById("ekAbbrev").value = kit.abbrev || "";
+  document.getElementById("ekNote").value = kit.note || "";
+  renderEditSwatches();
+  document.getElementById("editKitModal").classList.add("open");
+  setTimeout(() => document.getElementById("ekName").focus(), 100);
+}
+
+function closeEditKitModal() {
+  document.getElementById("editKitModal").classList.remove("open");
+  editingKitId = null;
+}
+
+function renderEditSwatches() {
+  const el = document.getElementById("editColorSwatches");
+  el.innerHTML = PALETTE.map(c => `<div class="swatch${c===editKitColor?" selected":""}" style="background:${c}" onclick="pickEditColor('${c}')"></div>`).join("");
+  document.getElementById("saveKitBtn").style.background = editKitColor;
+}
+
+function pickEditColor(c) {
+  editKitColor = c;
+  renderEditSwatches();
+}
+
+function saveKitEdits() {
+  if (!editingKitId) return;
+  const kit = state.kits.find(k => k.id === editingKitId);
+  if (!kit) return;
+  const name = document.getElementById("ekName").value.trim();
+  if (!name) { document.getElementById("ekName").focus(); return; }
+  kit.name = name;
+  kit.abbrev = document.getElementById("ekAbbrev").value.trim().toUpperCase() || kit.abbrev;
+  kit.color = editKitColor;
+  kit.note = document.getElementById("ekNote").value.trim();
+  scheduleSave();
+  closeEditKitModal();
+  render();
+}
+
+// --- Move Instrument Modal ---
+let moveSrcKitId = null;
+let moveSrcInstrId = null;
+let moveMode = 'move'; // 'move' or 'copy'
+
+function openMoveModal(kitId, instrId, mode) {
+  moveSrcKitId = kitId;
+  moveSrcInstrId = instrId;
+  moveMode = mode || 'move';
+  const select = document.getElementById("moveTarget");
+  select.innerHTML = state.kits
+    .filter(k => k.id !== kitId)
+    .map(k => `<option value="${k.id}">${escHtml(k.name)}</option>`)
+    .join("");
+  const isMove = moveMode === 'move';
+  document.getElementById("moveModalTitle").textContent = isMove ? "Move Instrument to Another Kit" : "Copy Instrument to Another Kit";
+  document.getElementById("moveConfirmBtn").textContent = isMove ? "Move" : "Copy";
+  document.getElementById("moveConfirmBtn").style.background = isMove ? "#2980B9" : "#117A65";
+  document.getElementById("moveInstrModal").classList.add("open");
+}
+
+function closeMoveModal() {
+  document.getElementById("moveInstrModal").classList.remove("open");
+  moveSrcKitId = null; moveSrcInstrId = null;
+}
+
+function confirmMoveOrCopy() {
+  const destKitId = document.getElementById("moveTarget").value;
+  const srcKit = state.kits.find(k => k.id === moveSrcKitId);
+  const destKit = state.kits.find(k => k.id === destKitId);
+  if (!srcKit || !destKit) return;
+  const instrIdx = srcKit.instruments.findIndex(i => i.id === moveSrcInstrId);
+  if (instrIdx === -1) return;
+
+  if (moveMode === 'copy') {
+    // Deep copy, fresh id, leave original alone
+    const copy = JSON.parse(JSON.stringify(srcKit.instruments[instrIdx]));
+    copy.id = uid();
+    destKit.instruments.push(copy);
+  } else {
+    // Move — remove from source
+    const [instr] = srcKit.instruments.splice(instrIdx, 1);
+    instr.id = uid();
+    destKit.instruments.push(instr);
+    delete state.checked[moveSrcKitId + "_" + moveSrcInstrId];
+    editingInstr = null;
+  }
+
+  scheduleSave();
+  closeMoveModal();
+  expandedKit = destKitId;
+  render();
+}
+
+loadData();
+</script>
+</body>
+</html>
