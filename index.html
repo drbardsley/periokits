@@ -511,7 +511,7 @@ function renderOrderList() {
           <div style="flex:3;min-width:0">
             <div class="order-instr-name">${escHtml(displayName)}</div>
             ${instr.s && instr.s !== instr.name ? `<div class="order-instr-generic">${escHtml(instr.name)}</div>` : ""}
-            ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(instr.supplier)}</div>` : ""}
+            ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(normalizeSupplier(instr.supplier))}</div>` : ""}
           </div>
           <span style="flex:1.2;font-size:11px;color:${kit.color};font-family:monospace">${instr.c ? "#"+escHtml(instr.c) : "—"}</span>
           <span style="flex:0.6;text-align:center;color:#888;font-size:12px">${instr.q}×${numSets}</span>
@@ -588,7 +588,7 @@ function renderCostList() {
       return `<div class="order-row${i%2===0?" alt":""}">
         <div style="flex:3;min-width:0">
           <div style="font-size:13px">${escHtml(displayName)}</div>
-          ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(instr.supplier)}</div>` : ""}
+          ${instr.supplier ? `<div style="font-size:11px;color:#aaa">${escHtml(normalizeSupplier(instr.supplier))}</div>` : ""}
         </div>
         <span style="flex:1;text-align:center;font-size:12px;color:#888">${totalUnits} units</span>
         <span style="flex:1.2;text-align:center;font-size:12px;color:#888">${pkgsNeeded} pkg × $${parseFloat(instr.pkgPrice).toFixed(2)}</span>
@@ -666,10 +666,13 @@ function _render() {
             ${isDone ? "✓" : ""}
           </div>
           <div class="instr-info">
-            <div class="instr-name${isDone ? " struck" : ""}">${escHtml(displayName)}</div>
+            <div class="instr-name${isDone ? " struck" : ""}">${escHtml(instr.s || instr.name)}</div>
             ${instr.s && instr.s !== instr.name ? `<div class="instr-generic">${escHtml(instr.name)}</div>` : ""}
-            ${instr.c ? `<div class="instr-code" style="color:${kit.color}">#${escHtml(instr.c.length > 40 ? instr.c.substring(0,40)+"…" : instr.c)}</div>` : ""}
-            ${instr.pkgQty && instr.pkgPrice ? `<div style="font-size:11px;color:#888;margin-top:1px">📦 ${instr.pkgQty}/pkg @ $${(parseFloat(instr.pkgPrice)||0).toFixed(2)}</div>` : (instr.pkgPrice ? `<div style="font-size:11px;color:#888;margin-top:1px">$${(parseFloat(instr.pkgPrice)||0).toFixed(2)}/pkg</div>` : "")}
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+              ${instr.supplier ? `<span style="font-size:10px;font-family:monospace;background:${kit.color}22;color:${kit.color};padding:1px 5px;border-radius:3px;font-weight:700">${escHtml(normalizeSupplier(instr.supplier))}</span>` : ""}
+              ${instr.c ? `<a href="${escHtml(instr.c)}" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;color:#2980B9;text-decoration:none;font-family:monospace">🔗 View item</a>` : ""}
+              ${instr.pkgPrice ? `<span style="font-size:11px;color:#888">$${(parseFloat(instr.pkgPrice)||0).toFixed(2)}${instr.pkgQty && instr.pkgQty > 1 ? ` / ${instr.pkgQty}pk` : ""}</span>` : ""}
+            </div>
           </div>
           <span class="instr-qty">×${instr.q}</span>
           <span class="instr-total">= ${totalQty}</span>
@@ -678,16 +681,26 @@ function _render() {
         </div>
         <div class="edit-panel${isEdit ? " open" : ""}" id="ep_${editKey}" style="border-color:${kit.color}55">
           <div class="edit-row">
-            <label class="edit-label">Generic name</label>
+            <label class="edit-label">Generic name (what it is)</label>
             <input class="edit-input" value="${escHtml(instr.name)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','name',this.value)" placeholder="e.g. Minnesota Retractor">
           </div>
           <div class="edit-row">
-            <label class="edit-label">Specific model / supplier name</label>
-            <input class="edit-input" value="${escHtml(instr.s)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','s',this.value)" placeholder="e.g. Hu-Friedy MN4R Minnesota">
+            <label class="edit-label">Product name / description</label>
+            <input class="edit-input" value="${escHtml(instr.s)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','s',this.value)" placeholder="e.g. SurgiMac 4mm Dental Surgical Root Elevator, 1/Pk">
           </div>
           <div class="edit-row">
-            <label class="edit-label">Item / catalog code</label>
-            <input class="edit-input" value="${escHtml(instr.c)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','c',this.value)" placeholder="e.g. HF-MN4R or URL">
+            <label class="edit-label">Supplier</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              ${["Net32","InstrumentsDental","FrontierDental","ProDent USA","Other"].map(sup => {
+                const isSelected = normalizeSupplier(instr.supplier||"") === sup;
+                return `<button onclick="event.stopPropagation();updateInstr('${safeKitId}','${safeInstrId}','supplier','${sup}')" style="padding:5px 10px;border-radius:5px;border:1px solid ${isSelected ? kit.color : "#ddd"};background:${isSelected ? kit.color : "#f5f5f5"};color:${isSelected ? "#fff" : "#555"};font-size:12px;cursor:pointer;font-family:monospace">${sup}</button>`;
+              }).join("")}
+            </div>
+          </div>
+          <div class="edit-row">
+            <label class="edit-label">Product URL (direct link to item)</label>
+            <input class="edit-input" value="${escHtml(instr.c)}" oninput="updateInstr('${safeKitId}','${safeInstrId}','c',this.value)" placeholder="https://www.net32.com/ec/...">
+            ${instr.c ? `<a href="${escHtml(instr.c)}" target="_blank" style="font-size:11px;color:#2980B9;display:block;margin-top:4px;font-family:monospace">🔗 Test this link</a>` : ""}
           </div>
           <div class="edit-row">
             <label class="edit-label">Qty per set</label>
@@ -697,17 +710,13 @@ function _render() {
           <div style="font-size:10px;font-family:monospace;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:8px;">📦 Packaging & Pricing</div>
           <div style="display:flex;gap:8px;">
             <div class="edit-row" style="flex:1">
-              <label class="edit-label">Pkg quantity (units/box)</label>
+              <label class="edit-label">Units per package</label>
               <input class="edit-input" type="number" min="1" value="${instr.pkgQty||1}" oninput="updateInstr('${safeKitId}','${safeInstrId}','pkgQty',Math.max(1,parseInt(this.value)||1))" placeholder="e.g. 10">
             </div>
             <div class="edit-row" style="flex:1">
               <label class="edit-label">Price per package ($)</label>
               <input class="edit-input" type="number" min="0" step="0.01" value="${instr.pkgPrice||""}" oninput="updateInstr('${safeKitId}','${safeInstrId}','pkgPrice',parseFloat(this.value)||0)" placeholder="e.g. 25.00">
             </div>
-          </div>
-          <div class="edit-row">
-            <label class="edit-label">Supplier</label>
-            <input class="edit-input" value="${escHtml(instr.supplier||"")}" oninput="updateInstr('${safeKitId}','${safeInstrId}','supplier',this.value)" placeholder="e.g. Henry Schein, Hu-Friedy">
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
             <button class="done-btn" style="background:${kit.color}" onclick="toggleEdit('${safeKitId}','${safeInstrId}')">Done</button>
@@ -756,6 +765,16 @@ function _render() {
 
 function escHtml(s) {
   return (s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function normalizeSupplier(s) {
+  if (!s) return "";
+  const l = s.toLowerCase().trim();
+  if (l.includes("net32")) return "Net32";
+  if (l.includes("instrumentsdental") || l.includes("instruments dental")) return "InstrumentsDental";
+  if (l.includes("frontier")) return "FrontierDental";
+  if (l.includes("prodent") || l.includes("prodentusa") || l.includes("prodent usa")) return "ProDent USA";
+  return s; // return as-is for "Other" or anything unrecognized
 }
 
 function toggleKit(kitId) {
